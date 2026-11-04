@@ -3,12 +3,12 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import EmailStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Runtime configuration. Secrets env."""
+    """Runtime configuration."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -16,17 +16,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM provider
-    llm_api_key: SecretStr | None = None
-    llm_model: str | None = None
-    llm_timeout_seconds: float = Field(default=30.0, gt=0)
-    llm_max_retries: int = Field(default=3, ge=0, le=10)
+    # Local LLM - Ollama
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:3b"
+    llm_timeout_seconds: float = Field(default=60.0, gt=0)
+    llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
 
-    # Privacy: key used to encrypt local env
-    vault_key: SecretStr | None = None
-
-    # Classification by human
-    human_review_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Outgoing mail - Mailpit
+    smtp_host: str = "localhost"
+    smtp_port: int = Field(default=1025, ge=1, le=65535)
+    smtp_timeout_seconds: float = Field(default=10.0, gt=0)
+    mail_from: EmailStr = "router@example.com"
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

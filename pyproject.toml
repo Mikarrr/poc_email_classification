@@ -1,10 +1,11 @@
 [project]
 name = "email-classifier"
 version = "0.1.0"
-description = "LLM-based email classification with PII pseudonymization"
+description = "AI agent that routes user messages to departments using a local Ollama LLM"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "email-validator>=2.2",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
 ]

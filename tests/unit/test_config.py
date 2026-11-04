@@ -4,12 +4,14 @@ from pydantic import ValidationError
 from email_classifier.config import Settings
 
 ENV_VARS = (
-    "LLM_API_KEY",
-    "LLM_MODEL",
+    "OLLAMA_BASE_URL",
+    "OLLAMA_MODEL",
     "LLM_TIMEOUT_SECONDS",
-    "LLM_MAX_RETRIES",
-    "VAULT_KEY",
-    "HUMAN_REVIEW_THRESHOLD",
+    "LLM_TEMPERATURE",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_TIMEOUT_SECONDS",
+    "MAIL_FROM",
     "LOG_LEVEL",
 )
 
@@ -21,42 +23,49 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def make_settings() -> Settings:
+    # Ignore any local .env so tests are hermetic.
     return Settings(_env_file=None)
 
 
-def test_defaults() -> None:
+def test_defaults_work_without_any_env() -> None:
     settings = make_settings()
 
-    assert settings.llm_api_key is None
-    assert settings.llm_model is None
-    assert settings.human_review_threshold == 0.7
+    assert settings.ollama_base_url == "http://localhost:11434"
+    assert settings.ollama_model == "qwen2.5:3b"
+    assert settings.llm_temperature == 0.0
+    assert settings.smtp_host == "localhost"
+    assert settings.smtp_port == 1025
+    assert settings.mail_from == "router@example.com"
     assert settings.log_level == "INFO"
 
 
 def test_reads_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LLM_MODEL", "some-model")
-    monkeypatch.setenv("HUMAN_REVIEW_THRESHOLD", "0.85")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    monkeypatch.setenv("OLLAMA_MODEL", "llama3.2:3b")
+    monkeypatch.setenv("SMTP_HOST", "mailpit")
+    monkeypatch.setenv("SMTP_PORT", "2525")
 
     settings = make_settings()
 
-    assert settings.llm_model == "some-model"
-    assert settings.human_review_threshold == 0.85
+    assert settings.ollama_base_url == "http://ollama:11434"
+    assert settings.ollama_model == "llama3.2:3b"
+    assert settings.smtp_host == "mailpit"
+    assert settings.smtp_port == 2525
 
 
-def test_secrets_are_masked_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LLM_API_KEY", "sk-very-secret")
-    monkeypatch.setenv("VAULT_KEY", "vault-very-secret")
-
-    settings = make_settings()
-
-    assert "very-secret" not in repr(settings)
-    assert settings.llm_api_key is not None
-    assert settings.llm_api_key.get_secret_value() == "sk-very-secret"
-
-
-@pytest.mark.parametrize("value", ["-0.1", "1.5"])
-def test_rejects_threshold_out_of_range(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
-    monkeypatch.setenv("HUMAN_REVIEW_THRESHOLD", value)
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("SMTP_PORT", "0"),
+        ("SMTP_PORT", "70000"),
+        ("LLM_TIMEOUT_SECONDS", "0"),
+        ("LLM_TEMPERATURE", "-1"),
+        ("MAIL_FROM", "not-an-email"),
+        ("LOG_LEVEL", "VERBOSE"),
+    ],
+)
+def test_rejects_invalid_values(monkeypatch: pytest.MonkeyPatch, name: str, value: str) -> None:
+    monkeypatch.setenv(name, value)
 
     with pytest.raises(ValidationError):
         make_settings()

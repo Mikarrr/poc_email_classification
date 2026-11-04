@@ -1,7 +1,7 @@
-# Email Classification PoC
+# AI Message Router PoC
 
-Classifies incoming emails (category, priority, suggested action) with an LLM. Personal data is
-pseudonymized before anything is sent to the model API.
+A microservice that accepts a user's message, lets an AI agent running on a local Ollama LLM decide
+which department should handle it, and has the agent send the email through a tool call.
 
 > Work in progress.
 

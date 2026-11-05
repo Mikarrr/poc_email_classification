@@ -12,6 +12,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aiosmtpd>=1.4.6",
     "mypy>=1.13",
     "pre-commit>=4.0",
     "pytest>=8.3",

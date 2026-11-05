@@ -23,7 +23,6 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def make_settings() -> Settings:
-    # Ignore any local .env so tests are hermetic.
     return Settings(_env_file=None)
 
 

@@ -1,6 +1,5 @@
 from email_classifier.departments import FALLBACK_DEPARTMENT, Department
 
-# The exact list of target addresses from the assignment brief.
 BRIEF_ADDRESSES = {
     "human-resources@example.com",
     "help-desk@example.com",

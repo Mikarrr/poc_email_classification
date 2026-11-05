@@ -35,7 +35,6 @@ class Mailer:
         message["From"] = self.sender
         message["To"] = to
         message["Reply-To"] = reply_to
-        # The subject may come from the LLM: collapse line breaks so it cannot add headers.
         message["Subject"] = " ".join(subject.split())
         message["Date"] = formatdate(localtime=True)
         message["Message-ID"] = make_msgid(domain=self.sender.rpartition("@")[2] or None)
@@ -51,7 +50,6 @@ class Mailer:
         message = self.build_message(to=to, reply_to=reply_to, subject=subject, body=body)
         try:
             with smtplib.SMTP(self.host, self.port, timeout=self.timeout) as smtp:
-                # Explicit envelope: the message goes to `to` only, whatever the headers say.
                 smtp.send_message(message, from_addr=self.sender, to_addrs=[to])
         except (smtplib.SMTPException, OSError) as exc:
             raise MailDeliveryError(

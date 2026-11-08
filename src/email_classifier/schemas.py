@@ -34,6 +34,19 @@ class RouteMessageRequest(BaseModel):
 class RouteMessageResponse(BaseModel):
     """Where the message was routed."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "request_id": "6f1c2a0e-8d3b-4b6e-9a51-2f4c7d9e0b13",
+                    "department": "help_desk",
+                    "routed_to": "help-desk@example.com",
+                    "fallback_used": False,
+                }
+            ]
+        }
+    )
+
     request_id: UUID
     department: Department
     routed_to: EmailStr

@@ -11,6 +11,7 @@ from pydantic_ai import Agent
 from email_classifier import __version__
 from email_classifier.agent import MailSender, RoutingDeps, build_agent, route_message
 from email_classifier.config import Settings, get_settings
+from email_classifier.departments import Department
 from email_classifier.mailer import MailDeliveryError, Mailer
 from email_classifier.schemas import HealthResponse, RouteMessageRequest, RouteMessageResponse
 
@@ -29,8 +30,8 @@ picks the department that should handle it and forwards the message there by ema
 # ── Dependencies ─────────────────────────────────────────────────
 
 
-def get_agent(request: Request) -> Agent[RoutingDeps, str]:
-    agent: Agent[RoutingDeps, str] = request.app.state.agent
+def get_agent(request: Request) -> Agent[RoutingDeps, Department]:
+    agent: Agent[RoutingDeps, Department] = request.app.state.agent
     return agent
 
 
@@ -39,7 +40,7 @@ def get_mailer(request: Request) -> MailSender:
     return mailer
 
 
-AgentDep = Annotated[Agent[RoutingDeps, str], Depends(get_agent)]
+AgentDep = Annotated[Agent[RoutingDeps, Department], Depends(get_agent)]
 MailerDep = Annotated[MailSender, Depends(get_mailer)]
 
 

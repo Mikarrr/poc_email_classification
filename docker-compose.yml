@@ -1,0 +1,70 @@
+name: message-router
+
+services:
+  # ── LLM server; the model weights live in a named volume ──
+  ollama:
+    image: ollama/ollama:0.33.3
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-24h}
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # ── One-shot: pulls the model and tunes its CPU threads (docker/ollama-init.sh) ──
+  ollama-init:
+    image: ollama/ollama:0.33.3
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_NUM_THREAD: ${OLLAMA_NUM_THREAD:-}
+    volumes:
+      - ./docker/ollama-init.sh:/ollama-init.sh:ro
+    entrypoint: ["sh", "/ollama-init.sh"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Mail catcher: SMTP on 1025, web UI on 8025 ──
+  mailpit:
+    image: axllent/mailpit:v1.32
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ── The API; starts only when the model is pulled and Mailpit is up ──
+  api:
+    build: .
+    image: message-router-api:latest
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}-router
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-120}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-router@example.com}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ollama-models:

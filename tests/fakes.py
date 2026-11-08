@@ -2,14 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from pydantic_ai.messages import (
-    ModelMessage,
-    ModelRequest,
-    ModelResponse,
-    TextPart,
-    ToolCallPart,
-    ToolReturnPart,
-)
+from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from email_classifier.mailer import MailDeliveryError
@@ -43,17 +36,8 @@ class FakeMailer:
 # ── Scripted models ──────────────────────────────────────────────
 
 
-def tool_already_answered(messages: list[ModelMessage]) -> bool:
-    last = messages[-1]
-    return isinstance(last, ModelRequest) and any(
-        isinstance(part, ToolReturnPart) for part in last.parts
-    )
-
-
 def calls_send_email(**args: str) -> FunctionModel:
     def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
-        if tool_already_answered(messages):
-            return ModelResponse(parts=[TextPart("Done.")])
         return ModelResponse(parts=[ToolCallPart("send_email", args)])
 
     return FunctionModel(model)

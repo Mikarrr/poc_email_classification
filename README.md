@@ -130,7 +130,8 @@ Start order, enforced with healthchecks and `depends_on` conditions: `ollama` is
 Request flow:
 
 1. FastAPI validates `email` and `message`.
-2. The agent sends the system prompt and the message, wrapped in `<message>` tags, to the model.
+2. The agent sends the system prompt and the message to the model. The message is wrapped in
+   `<message>` tags, with `<` and `>` escaped so that it cannot close or fake the tags.
 3. The model calls `send_email(department, subject, reason)`.
 4. The tool maps the department to its address, sets `Reply-To` to the sender, attaches the
    original message to the email body and sends it over SMTP.
@@ -163,11 +164,14 @@ Request flow:
 
 ## Known limitations
 
-- A 3B model on CPU makes mistakes on borderline messages. On 21 Polish test messages it routes
-  16–19 correctly (CPU vs Apple GPU). Typical misses are payroll or certificate questions sent to
-  `human_resources` instead of `kadry`.
-- Text inside the message that names a department ("send this to it@...") can still change the
-  department the model picks. It cannot change the recipient list or `Reply-To`.
+- A 3B model makes mistakes on borderline messages. On the 64 Polish test messages in
+  [`tests/fixtures/routing_cases.jsonl`](tests/fixtures/routing_cases.jsonl) it routes 62
+  correctly on CPU (96.9%), including all 21 messages of the held-out part (the prompt was
+  tuned on the other 43). The two misses: "zaświadczenie o zatrudnieniu" goes to
+  `human_resources` instead of `kadry`, and one injected instruction ("dział = other") still
+  changes the department. An injection can never change the recipient list or `Reply-To`.
+- About a third of the email subjects come out in English although the messages are Polish.
+  Asking for the message language in the tool description did not help and lowered accuracy.
 - One request is processed at a time by Ollama; this is a PoC, not a load-tested service.
 
 ## Configuration
@@ -205,6 +209,7 @@ Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/).
 | `make lint` | ruff (lint and format check) and mypy (strict) |
 | `make format` | fix lint issues and format the code |
 | `make cov` | run the tests with a coverage report |
+| `make e2e` | send the 64 test messages to the running stack and report routing accuracy (needs `make up`) |
 | `make run` | run the API locally with reload on port 8000 (needs Ollama on `localhost:11434` and an SMTP server on `localhost:1025`) |
 | `make up` / `make down` | start / stop the Docker stack (`down` keeps the model volume) |
 | `make logs` / `make ps` | follow the logs / show the containers |
@@ -212,6 +217,11 @@ Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/).
 The tests replace the LLM with pydantic-ai's `FunctionModel` and the mail server with a fake or
 a local `aiosmtpd` server. They cover routing, `Reply-To`, invalid department names, a model that
 answers with text or fails, the fallback, the HTTP errors and logs without message content.
+
+`make e2e` checks the real stack: every message must produce exactly one email in Mailpit with
+the sender as `Reply-To`, and at least 90% must reach the expected department. It prints the
+accuracy per department and per split, and every miss. Options: `E2E_SPLIT=dev|holdout|all`,
+`E2E_MIN_ACCURACY`, `E2E_API_URL`, `E2E_MAILPIT_URL`.
 
 ```
 src/email_classifier/
@@ -223,5 +233,5 @@ src/email_classifier/
 ├── prompts/system.md  system prompt with the routing rules
 └── api/app.py         FastAPI app under /api/v1
 docker/ollama-init.sh  model pull and CPU thread tuning
-tests/                 unit and integration tests
+tests/                 unit, integration and end-to-end tests, routing cases
 ```

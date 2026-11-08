@@ -48,6 +48,12 @@ def load_system_prompt() -> str:
     return files("email_classifier").joinpath("prompts/system.md").read_text(encoding="utf-8")
 
 
+def wrap_message(message: str) -> str:
+    """Put the message in `<message>` tags; escaped brackets keep it from faking the tags."""
+    escaped = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return f"<message>\n{escaped}\n</message>"
+
+
 def compose_body(message: str, reason: str) -> str:
     return f"{message}\n\n---\nRouting note: {reason}\n"
 
@@ -61,7 +67,10 @@ def send_email(
     """Forward the message to the chosen department.
 
     Args:
-        department: the department that should handle the message.
+        department: the department that should handle the message: kadry (salary, leave,
+            contracts, employment documents), human_resources (hiring, training, benefits,
+            career, conflicts), help_desk (IT support for the sender's own device or account),
+            it (shared systems, network, access rights, new software) or other (anything else).
         subject: a short summary of the request, at most 8 words.
         reason: one sentence on why this department fits.
     """
@@ -105,7 +114,7 @@ async def route_message(
     deps = RoutingDeps(sender_email=sender_email, message=message, mailer=mailer)
     try:
         result = await agent.run(
-            f"<message>\n{message}\n</message>",
+            wrap_message(message),
             deps=deps,
             usage_limits=UsageLimits(request_limit=4),
         )

@@ -1,8 +1,11 @@
-.PHONY: install lint format test cov clean
+.PHONY: install run lint format test cov clean
 
 install:
 	uv sync
 	uv run pre-commit install
+
+run:
+	PYDANTIC_AI_NO_BANNER=1 uv run uvicorn email_classifier.api.app:create_app --factory --reload
 
 lint:
 	uv run ruff check .

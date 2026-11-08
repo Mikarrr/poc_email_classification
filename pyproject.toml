@@ -73,7 +73,7 @@ testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "--strict-markers", "-ra"]
 pythonpath = ["."]
 markers = [
-    "live: calls a real LLM API (excluded from CI, run with -m live)",
+    "e2e: needs the running compose stack (make up); run with make e2e",
 ]
 
 [tool.coverage.run]

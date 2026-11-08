@@ -1,4 +1,4 @@
-.PHONY: install run up up-gpu down logs ps lint format test cov clean
+.PHONY: install run up up-gpu down logs ps lint format test e2e cov clean
 
 install:
 	uv sync
@@ -32,10 +32,13 @@ format:
 	uv run ruff format .
 
 test:
-	uv run pytest -m "not live"
+	uv run pytest -m "not e2e"
+
+e2e:
+	uv run pytest -m e2e -s
 
 cov:
-	uv run pytest -m "not live" --cov --cov-report=term-missing
+	uv run pytest -m "not e2e" --cov --cov-report=term-missing
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov dist build

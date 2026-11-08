@@ -10,6 +10,7 @@ from pydantic_ai import Agent
 from email_classifier.agent import RoutingDeps
 from email_classifier.api.app import create_app
 from email_classifier.config import Settings
+from email_classifier.departments import Department
 from tests.fakes import HELP_DESK_CALL, FakeMailer, calls_send_email, raises_error
 
 SENDER = "jan.nowak@example.com"
@@ -28,8 +29,8 @@ def client(app: FastAPI) -> Iterator[TestClient]:
         yield test_client
 
 
-def agent_of(app: FastAPI) -> Agent[RoutingDeps, str]:
-    agent: Agent[RoutingDeps, str] = app.state.agent
+def agent_of(app: FastAPI) -> Agent[RoutingDeps, Department]:
+    agent: Agent[RoutingDeps, Department] = app.state.agent
     return agent
 
 

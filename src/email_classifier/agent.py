@@ -1,4 +1,4 @@
-"""Routing agent: the LLM picks a department and forwards the message with the `send_email` tool."""
+"""Routing agent: the LLM picks a department by calling `send_email`, which forwards the message."""
 
 import asyncio
 import logging
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from importlib.resources import files
 from typing import Protocol
 
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, RunContext, ToolOutput
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.settings import ModelSettings
@@ -33,7 +33,6 @@ class RoutingDeps:
     sender_email: str
     message: str
     mailer: MailSender
-    department: Department | None = None
 
 
 @dataclass(frozen=True)
@@ -53,12 +52,12 @@ def compose_body(message: str, reason: str) -> str:
     return f"{message}\n\n---\nRouting note: {reason}\n"
 
 
-# ── Tool ─────────────────────────────────────────────────────────
+# ── Output function ──────────────────────────────────────────────
 
 
 def send_email(
     ctx: RunContext[RoutingDeps], department: Department, subject: str, reason: str
-) -> str:
+) -> Department:
     """Forward the message to the chosen department.
 
     Args:
@@ -67,22 +66,19 @@ def send_email(
         reason: one sentence on why this department fits.
     """
     deps = ctx.deps
-    if deps.department is not None:
-        return f"The message was already sent to {deps.department}. Do not call this tool again."
     deps.mailer.send(
         to=department.address,
         reply_to=deps.sender_email,
         subject=subject,
         body=compose_body(deps.message, reason),
     )
-    deps.department = department
-    return f"Sent to {department}."
+    return department
 
 
 # ── Agent ────────────────────────────────────────────────────────
 
 
-def build_agent(settings: Settings) -> Agent[RoutingDeps, str]:
+def build_agent(settings: Settings) -> Agent[RoutingDeps, Department]:
     model = OpenAIChatModel(
         settings.ollama_model,
         provider=OllamaProvider(base_url=f"{settings.ollama_base_url}/v1"),
@@ -91,7 +87,7 @@ def build_agent(settings: Settings) -> Agent[RoutingDeps, str]:
         model,
         deps_type=RoutingDeps,
         instructions=load_system_prompt(),
-        tools=[send_email],
+        output_type=ToolOutput(send_email, name="send_email"),
         model_settings=ModelSettings(
             temperature=settings.llm_temperature,
             timeout=settings.llm_timeout_seconds,
@@ -104,11 +100,11 @@ def build_agent(settings: Settings) -> Agent[RoutingDeps, str]:
 
 
 async def route_message(
-    agent: Agent[RoutingDeps, str], mailer: MailSender, sender_email: str, message: str
+    agent: Agent[RoutingDeps, Department], mailer: MailSender, sender_email: str, message: str
 ) -> RoutingResult:
     deps = RoutingDeps(sender_email=sender_email, message=message, mailer=mailer)
     try:
-        await agent.run(
+        result = await agent.run(
             f"<message>\n{message}\n</message>",
             deps=deps,
             usage_limits=UsageLimits(request_limit=4),
@@ -117,9 +113,8 @@ async def route_message(
         raise
     except Exception:
         logger.exception("agent run failed, using the fallback department")
-
-    if deps.department is not None:
-        return RoutingResult(department=deps.department, fallback_used=False)
+    else:
+        return RoutingResult(department=result.output, fallback_used=False)
 
     await asyncio.to_thread(
         mailer.send,

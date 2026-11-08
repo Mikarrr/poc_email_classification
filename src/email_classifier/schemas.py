@@ -1,6 +1,6 @@
 """Request and response models of the HTTP API."""
 
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
@@ -52,3 +52,9 @@ class RouteMessageResponse(BaseModel):
             routed_to=department.address,
             fallback_used=fallback_used,
         )
+
+
+class HealthResponse(BaseModel):
+    """Liveness of the API process."""
+
+    status: Literal["ok"] = "ok"

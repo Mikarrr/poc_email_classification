@@ -1,4 +1,4 @@
-.PHONY: install run lint format test cov clean
+.PHONY: install run up up-gpu down logs ps lint format test cov clean
 
 install:
 	uv sync
@@ -6,6 +6,21 @@ install:
 
 run:
 	PYDANTIC_AI_NO_BANNER=1 uv run uvicorn email_classifier.api.app:create_app --factory --reload
+
+up:
+	docker compose up -d --build
+
+up-gpu:
+	docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+ps:
+	docker compose ps -a
 
 lint:
 	uv run ruff check .

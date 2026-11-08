@@ -143,3 +143,14 @@ def test_logs_the_routing_but_not_the_message(
     assert f"request {request_id}: routed to help_desk" in caplog.text
     assert MESSAGE not in caplog.text
     assert SENDER not in caplog.text
+
+
+def test_swagger_response_example_matches_the_request_example(client: TestClient) -> None:
+    schemas = client.get("/api/v1/openapi.json").json()["components"]["schemas"]
+
+    request_example = schemas["RouteMessageRequest"]["examples"][0]
+    response_example = schemas["RouteMessageResponse"]["examples"][0]
+
+    assert request_example["message"] == "Nie działa mi komputer"
+    assert response_example["department"] == "help_desk"
+    assert response_example["routed_to"] == "help-desk@example.com"
